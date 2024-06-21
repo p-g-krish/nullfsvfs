@@ -1,13 +1,20 @@
 [![nullfsvfs CI on ubuntu-latest](https://github.com/abbbi/nullfsvfs/actions/workflows/ci-ubuntu-latest.yml/badge.svg?branch=master)](https://github.com/abbbi/nullfsvfs/actions/workflows/ci-ubuntu-latest.yml)
 
-## Index
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
- - [About](#nullfs)
- - [Usage](#usage)
- - [Installation](#installation)
- - [Use Cases](#usecases)
- - [Keeping data](#keep)
- - [Mount options](#supported)
+- [nullfs](#nullfs)
+  - [installation](#installation)
+    - [manual installation](#manual-installation)
+    - [debian package](#debian-package)
+  - [Usage](#usage)
+    - [Keeping file data](#keeping-file-data)
+    - [ACL](#acl)
+    - [usecases](#usecases)
+    - [supported mount options](#supported-mount-options)
+    - [todos/ideas](#todosideas)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # nullfs
 A virtual file system that behaves like /dev/null
@@ -24,9 +31,8 @@ read operations.
 
 ![alt text](https://github.com/abbbi/nullfsvfs/raw/master/nullfs.jpg)
 
-### usage
 ```
-# make
+# sudo make
 make -C /lib/modules/4.18.5/build M=/home/abi/lwnfs modules
 make[1]: Entering directory '/usr/src/linux-headers-4.18.5'
   Building modules, stage 2.
@@ -52,11 +58,11 @@ File size is preserved to work around applications that do size checks:
 
 ```
 # dd if=/dev/zero of=/nullfs/DATA bs=1M count=20
-# 20+0 records in
-# 20+0 records out
-# 20971520 bytes (21 MB, 20 MiB) copied, 0.00392452 s, 5.3 GB/s
+20+0 records in
+20+0 records out
+20971520 bytes (21 MB, 20 MiB) copied, 0.00392452 s, 5.3 GB/s
 # stat -c%s /nullfs/DATA
-# 20971520
+20971520
 ```
 
 Reading from the files does not copy anything to userspace and is an NOOP;
@@ -64,15 +70,17 @@ makes it behave like reading from /dev/zero:
 
 ```
 # dd if=/nullfs/DATA of=/tmp/REALFILE
-# 40960+0 records in
-# 40960+0 records out
-# 20971520 bytes (21 MB, 20 MiB) copied, 0.0455288 s, 461 MB/s
+40960+0 records in
+40960+0 records out
+20971520 bytes (21 MB, 20 MiB) copied, 0.0455288 s, 461 MB/s
 # hexdump -C /tmp/REALFILE
-# 00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 ```
 
 
 ## installation
+
+### manual installation
 
 To install the module for the running linux kernel use:
 
@@ -84,14 +92,14 @@ To install the module for the running linux kernel use:
 Running `depmod` is mandatory. Now the module can be loaded via:
 
 ```
- modprobe  nullfs
+ # modprobe nullfs
 ``` 
 
-To automatically load filesystem module during boot time, create a configuration
-file suitable for your distribution, usually located in */etc/modules-load.d*
+To automatically load the module during system boot, create a configuration
+file suitable for your distribution (usually located in */etc/modules-load.d*):
 
 ```
-echo nullfs > /etc/modules-load.d/nullfs.conf
+ # echo nullfs > /etc/modules-load.d/nullfs.conf
 ```
 
 Example entry for `/etc/fstab`, mounting the filesystem to `/nullfs`:
@@ -101,11 +109,20 @@ Example entry for `/etc/fstab`, mounting the filesystem to `/nullfs`:
 none    /nullfs nullfs auto
 ```
 
-### keep
+### debian package
 
-There is the possiblity to exclude certain files from beeing sent into the void.
-For example if the file matching "fstab" should be kept in memory, one can mount
-nullfs with the "write=" option. 
+```
+ # apt-get install debhelper dkms dh-dkms
+ # dpkg-buildpackage -uc -us -rfakeroot
+ # dpkg -i ../nullfsvfs_<version>_amd64.deb
+```
+
+## Usage
+### Keeping file data
+
+There is the possibility to exclude certain files from being sent into the
+void.  If, for example, the file matching "fstab" should be kept in memory,
+mount nullfs with the "write=" option.
 
 ```
 # mount -t nullfs none /sinkhole/ -o write=fstab
@@ -121,11 +138,11 @@ Another option is using the sysfs interface to change the exclude string
 after the module has been loaded:
 
 ```
- echo foo  > /sys/fs/nullfs/exclude 
+ # echo foo  > /sys/fs/nullfs/exclude
 ```
 
 Keep in mind that file data is kept in memory and no boundary checks are done,
-so this might fill up your RAM in case you exclude big files from beeing
+so this might fill up your RAM in case you exclude big files from being
 nulled.
 
 ### ACL
@@ -146,14 +163,14 @@ The module has been used for performance testing with redis, see:
 
 Please report usecases as regular issues!
 
-### supported
+### supported mount options
 
 The following mount options are supported:
 ```
  -o mode=      set permissions on mount directory ( mount .. -o mode=777 )
  -o uid=       set uid on mount directory ( mount .. -o uid=1000 )
  -o gid=       set gid on mount directory ( mount .. -o gid=1000 )
- 
+ -o write=fn   keep data for specific file ( mount .. -o write=fstab )
 ```
 
 ### todos/ideas
